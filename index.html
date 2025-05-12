@@ -1,65 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scrollable Chart</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .chart-container {
-            width: 100%;
-            overflow-x: auto;
-            margin: 20px auto;
-            padding: 10px;
-        }
-        #chartWrapper {
-            min-width: 800px; /* Ensures minimum width for proper display */
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Elegant Neumorphic Scrolling Chart</title>
+
+  <!-- Chart.js + Luxon adapter -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.3/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+
+  <style>
+    :root {
+      /* Light theme */
+      --bg-color: #f8fafb;
+      --bg-gradient-start: #f8fafb;
+      --bg-gradient-end:   #e8ecf0;
+      --shadow-dark: rgba(0,0,0,0.08);
+      --shadow-light: rgba(255,255,255,0.7);
+      --text-color: #6c7a89;
+      /* chart-specific */
+      --chart-line: #36A2EB;
+      --chart-point-bg: #36A2EB;
+      --chart-grad-start: rgba(54,162,235,0.5); /* Slightly less opaque */
+      --chart-grad-end:   rgba(54,162,235,0.05);/* Slightly less opaque */
+    }
+    .dark {
+      /* Dark theme */
+      --bg-color: #1f1f1f;
+      --bg-gradient-start: #1f1f1f;
+      --bg-gradient-end:   #262626;
+      --shadow-dark: rgba(0,0,0,0.6);
+      --shadow-light: rgba(255,255,255,0.1);
+      --text-color: #d1d1d1;
+      --chart-line: #dfe6ef;
+      --chart-point-bg: #dfe6ef;
+      --chart-grad-start: rgba(78,154,241,0.5); /* Slightly less opaque */
+      --chart-grad-end:   rgba(78,154,241,0.05);/* Slightly less opaque */
+    }
+
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body {
+      background: linear-gradient(
+        145deg,
+        var(--bg-gradient-start),
+        var(--bg-gradient-end)
+      );
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px 0; /* Add some padding for smaller viewports */
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      width: 60px;
+      height: 34px;
+      margin-bottom: 2rem;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top:0; left:0; right:0; bottom:0;
+      background: var(--bg-color);
+      box-shadow:
+        4px 4px 12px var(--shadow-dark),
+       -4px -4px 12px var(--shadow-light);
+      border-radius: 34px;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .slider:before {
+      content:"";
+      position:absolute;
+      height:26px; width:26px;
+      left:4px; bottom:4px;
+      background: var(--bg-gradient-start);
+      box-shadow:
+        2px 2px 6px var(--shadow-dark),
+       -2px -2px 6px var(--shadow-light);
+      border-radius:50%;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    input:checked + .slider {
+      box-shadow:
+        inset 4px 4px 12px var(--shadow-dark),
+        inset -4px -4px 12px var(--shadow-light);
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    /* Chart card */
+    .container { /* This container holds the box */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 90%;
+      max-width: 700px; /* This controls the visible width of the chart card */
+    }
+    .box { /* The neumorphic card itself */
+      background: var(--bg-color);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow:
+        10px 10px 30px var(--shadow-dark),
+       -10px -10px 30px var(--shadow-light),
+        inset 4px 4px 15px var(--shadow-dark),
+        inset -4px -4px 15px var(--shadow-light);
+      transition: box-shadow 0.3s, background 0.3s;
+      width: 100%;
+    }
+
+    /* --- Chart Scrolling Styles --- */
+    .chart-scroll-container {
+        width: 100%; /* Fill the .box content area */
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        border-radius: 12px; /* Match canvas radius to prevent content clipping */
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 350px; /* Define a fixed height for the chart area */
+        /* min-width will be set dynamically by JS based on data points */
+    }
+
+    /* Canvas element itself */
+    #myTimeSeriesChart {
+      display: block; /* Prevent extra space below canvas */
+      /* width and height will be controlled by Chart.js and .chart-wrapper */
+      border-radius: 12px; /* From original neumorphic style */
+    }
+
+
+    @media (max-width:480px) {
+      .box { padding:1rem; }
+      .chart-wrapper { height: 300px; }
+    }
+  </style>
 </head>
+
 <body>
-    <div class="chart-container">
-        <div id="chartWrapper">
-            <canvas id="myChart"></canvas>
-        </div>
+  <!-- theme toggle -->
+  <label class="switch">
+    <input type="checkbox" id="themeToggle">
+    <span class="slider"></span>
+  </label>
+
+  <div class="container">
+    <div class="box">
+      <!-- Outer container for scrolling -->
+      <div class="chart-scroll-container">
+          <!-- Inner wrapper to define minimum chart width -->
+          <div class="chart-wrapper">
+              <canvas id="myTimeSeriesChart"></canvas>
+          </div>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const data = {
-            labels: Array.from({length: 20}, (_, i) => `Day ${i + 1}`),
-            datasets: [{
-                label: 'Sample Data',
-                data: Array.from({length: 20}, () => Math.floor(Math.random() * 100)),
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-                pointRadius: 5,
-                pointHoverRadius: 7
+  <script>
+    let myChart = null; // To hold the chart instance
+
+    // Function to generate sample time series data
+    const generateData = (numPoints) => {
+        const data = [];
+        const startDate = luxon.DateTime.now().minus({ days: numPoints }); // Start in the past
+        for (let i = 0; i < numPoints; i++) {
+            data.push({
+                time: startDate.plus({ days: i }).toISODate(),
+                value: Math.floor(Math.random() * 40) + 30 // Random value between 30 and 70
+            });
+        }
+        return data;
+    };
+
+    // Function to update chart theme colors and gradient
+    function updateChartThemeColors(chartInstance) {
+        if (!chartInstance) return;
+
+        const rootStyle = getComputedStyle(document.documentElement);
+        const textColor = rootStyle.getPropertyValue('--text-color').trim();
+        const shadowDark = rootStyle.getPropertyValue('--shadow-dark').trim();
+        const bgColor = rootStyle.getPropertyValue('--bg-color').trim();
+        const chartLineColor = rootStyle.getPropertyValue('--chart-line').trim();
+        const chartPointBgColor = rootStyle.getPropertyValue('--chart-point-bg').trim();
+
+        // Update dataset colors (line, point, and functional background for gradient)
+        chartInstance.data.datasets[0].borderColor = chartLineColor;
+        chartInstance.data.datasets[0].pointBackgroundColor = chartPointBgColor;
+        // The backgroundColor is a function, so it will re-evaluate on update
+
+        // Update scales
+        chartInstance.options.scales.x.ticks.color = textColor;
+        chartInstance.options.scales.y.ticks.color = textColor;
+        chartInstance.options.scales.y.grid.color = shadowDark;
+
+        // Update tooltips
+        chartInstance.options.plugins.tooltip.backgroundColor = bgColor;
+        chartInstance.options.plugins.tooltip.titleColor = textColor;
+        chartInstance.options.plugins.tooltip.bodyColor = textColor;
+        chartInstance.options.plugins.tooltip.borderColor = shadowDark;
+
+        chartInstance.update('none'); // 'none' for no animation during theme update
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const body = document.body;
+        document.getElementById('themeToggle')
+          .addEventListener('change', e => {
+            body.classList.toggle('dark', e.target.checked);
+            updateChartThemeColors(myChart); // Update chart on theme change
+          });
+
+        // --- Chart Data ---
+        const numberOfDataPoints = 25; // More points to ensure scrolling
+        const chartData = generateData(numberOfDataPoints);
+
+        // Dynamically set min-width for chart-wrapper
+        const spacePerPoint = 70; // pixels per data point (adjust as needed)
+        const chartWrapper = document.querySelector('.chart-wrapper');
+        chartWrapper.style.minWidth = `${numberOfDataPoints * spacePerPoint}px`;
+
+        const ctx = document.getElementById('myTimeSeriesChart').getContext('2d');
+
+        myChart = new Chart(ctx, {
+          type:'line',
+          data:{
+            datasets:[{
+              label:'Value Over Time',
+              data: chartData.map(d=>({x:d.time, y:d.value})),
+              fill: true,
+              backgroundColor: function(context) {
+                  const chart = context.chart;
+                  const {ctx, chartArea} = chart;
+                  if (!chartArea) {
+                      return null; // Happens on initial load before chartArea is defined
+                  }
+                  const rootStyle = getComputedStyle(document.documentElement);
+                  const gradStart = rootStyle.getPropertyValue('--chart-grad-start').trim();
+                  const gradEnd = rootStyle.getPropertyValue('--chart-grad-end').trim();
+
+                  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                  gradient.addColorStop(0, gradStart);
+                  gradient.addColorStop(1, gradEnd);
+                  return gradient;
+              },
+              borderColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-line').trim(),
+              pointBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-point-bg').trim(),
+              pointRadius: 5, // Make points visible
+              pointHoverRadius: 8,
+              tension: 0.3 // Slightly less tension for better point visibility
             }]
-        };
-
-        const config = {
-            type: 'line',
-            data: data,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Scrollable Chart Example'
+          },
+          options:{
+            responsive: true,
+            maintainAspectRatio: false, // Crucial for scrolling behavior
+            scales:{
+              x:{
+                type:'time',
+                time:{
+                    unit:'day',
+                    tooltipFormat: 'DD MMM yyyy', // Luxon format for tooltips
+                    displayFormats: {
+                        day: 'MMM d' // Luxon format for axis ticks
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true
+                grid:{ display:false },
+                ticks:{
+                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim(),
+                    autoSkip: true, // Allow autoSkip for time axis with many points
+                    maxTicksLimit: 15 // Limit number of visible ticks on x-axis if too dense
+                }
+              },
+              y:{
+                beginAtZero: false, // Let y-axis adapt to data range for better visualization
+                grid:{
+                  drawBorder:false,
+                  color: getComputedStyle(document.documentElement).getPropertyValue('--shadow-dark').trim()
+                },
+                ticks:{
+                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim(),
+                    padding: 10
+                }
+              }
+            },
+            plugins:{
+              legend:{ display:false }, // Keep legend hidden as per original neumorphic
+              tooltip:{
+                enabled: true,
+                mode: 'index',
+                intersect: false,
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim(),
+                titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim(),
+                bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim(),
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--shadow-dark').trim(),
+                borderWidth:1,
+                cornerRadius: 8,
+                padding: 10,
+                callbacks: { // Custom tooltip title to format date
+                    title: function(tooltipItems) {
+                        if (tooltipItems.length > 0) {
+                            const date = luxon.DateTime.fromMillis(tooltipItems[0].parsed.x);
+                            return date.toFormat('DD MMM yyyy');
+                        }
+                        return '';
                     }
                 }
-            }
-        };
-
-        const ctx = document.getElementById('myChart').getContext('2d');
-        new Chart(ctx, config);
-    </script>
+              }
+            },
+            interaction: { // Ensure good interaction on scrollable chart
+                intersect: false,
+                mode: 'index',
+            },
+          }
+        });
+        // Initial call to set colors (though most are set directly or via function)
+        // updateChartThemeColors(myChart); // Not strictly needed if initial values are correct
+    });
+  </script>
 </body>
 </html>
