@@ -123,6 +123,38 @@
     @media(max-width:600px){
       .inner{flex-wrap:nowrap;}
     }
+    .panels {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      padding: 1rem;
+      /* replace min-height with: */
+      height: auto;         /* lets the panel grow with its content */
+    }
+    .panel {
+      flex: 1;
+      background: var(--bg-color);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow:
+        4px 4px 12px var(--shadow-dark),
+      -4px -4px 12px var(--shadow-light),
+        inset 2px 2px 6px var(--shadow-dark),
+      -2px -2px 6px var(--shadow-light);
+      transition: background 0.3s, box-shadow 0.3s;
+      padding: 1rem;
+      /* replace min-height with: */
+      height: auto;         /* lets the panel grow with its content */
+    }
+    .panel h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      color: var(--text-color);
+      padding: 1rem;
+      /* replace min-height with: */
+      height: auto;         /* lets the panel grow with its content */
+    }
+
   </style>
 </head>
 <body>
@@ -149,16 +181,38 @@
         <button id="prevBtn">Previous</button>
         <button id="nextBtn">Next</button>
       </div>
+      <div class="panels">
+        <div class="panel"><h3>Dietary</h3>
+          <!-- your dietary content here -->
+        </div>
+        <div class="panel"><h3>Health</h3>
+          <!-- your health content here -->
+        </div>
+        <div class="panel"><h3>Activities</h3>
+          <!-- your activities content here -->
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script>
+    // 0) On load: restore saved theme
+    const toggle = document.getElementById('themeToggle');
+    const saved = localStorage.getItem('theme'); // 'light' or 'dark'
+    if (saved === 'dark') {
+      document.body.classList.add('dark');
+      toggle.checked = true;
+    }
+
     // theme toggle
-    document.getElementById('themeToggle')
-      .addEventListener('change', e => {
-        document.body.classList.toggle('dark', e.target.checked);
-        if (window.chart) chart.update();
-      });
+    toggle.addEventListener('change', e => {
+      const isDark = e.target.checked;
+      document.body.classList.toggle('dark', isDark);
+      // persist choice
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      if (window.chart) chart.update();
+    });
   </script>
 
   <script>
